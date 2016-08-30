@@ -9,13 +9,13 @@ CoSLIB
 .. image:: https://img.shields.io/travis/macklenc/coslib.svg
         :target: https://travis-ci.org/macklenc/coslib
 
-.. image:: https://readthedocs.org/projects/coslib/badge/?version=latest
-        :target: https://coslib.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/coslib/badge/?version=develop
+        :target: https://coslib.readthedocs.io/en/latest/?badge=develop
         :alt: Documentation Status
 
 .. image:: https://pyup.io/repos/github/macklenc/coslib/shield.svg
-     :target: https://pyup.io/repos/github/macklenc/coslib/
-     :alt: Updates
+        :target: https://pyup.io/repos/github/macklenc/coslib/
+        :alt: Updates
 
 
 CoSLIB is a continuum-scale lithium-ion battery modeling framework written in Python that utilizes FEniCS and FiPy for solving model PDE's.
