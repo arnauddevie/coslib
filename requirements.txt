@@ -1,4 +1,4 @@
 xlrd
 csv==1.0
 numpy
-scipy
+scipy==0.18.0
