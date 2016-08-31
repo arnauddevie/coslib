@@ -1,0 +1,4 @@
+xlrd
+csv
+numpy
+scipy
