@@ -25,6 +25,7 @@ class TestCoslib(object):
 
     def test_something(self):
         pass
+
     def test_command_line_interface(self):
         runner = CliRunner()
         result = runner.invoke(cli.main)
@@ -37,4 +38,3 @@ class TestCoslib(object):
     @classmethod
     def teardown_class(cls):
         pass
-

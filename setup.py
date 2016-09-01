@@ -21,7 +21,9 @@ test_requirements = [
 setup(
     name='coslib',
     version='0.0.0',
-    description="CoSLIB is a continuum-scale lithium-ion battery modeling framework written in Python that utilizes FEniCS and FiPy to solve finite-element and finite-volume problems.",
+    description="CoSLIB is a continuum-scale lithium-ion battery modeling"
+    " framework written in Python that utilizes FEniCS and FiPy to solve"
+    " finite-element and finite-volume problems.",
     long_description=readme + '\n\n' + history,
     author="Christopher Macklen",
     author_email='cmacklen@uccs.edu',
