@@ -1,9 +1,10 @@
-import xlrd
+"""Required modules"""
 import re
 import csv
 import sys
 import numpy as np
 import scipy.io as sio
+import xlrd
 
 DATE = xlrd.XL_CELL_DATE
 TEXT = xlrd.XL_CELL_TEXT
@@ -16,10 +17,17 @@ NUMBER = xlrd.XL_CELL_NUMBER
 class Spreadsheet:
     """Hold spreadsheet data"""
 
-    def __init__(self):
+    def __init__(self, assumption=None):
         """Entry point for :class:`Spreadsheet`"""
         self.values = None
         self.ctypes = None
+        self.assume = assumption
+
+    def set_data(self, data_in):
+        """Set spreadsheet data using cell generators"""
+        data = list(data_in)
+        self.values = [[col.value for col in row] for row in data]
+        self.ctypes = [[col.ctype for col in row] for row in data]
 
     def set_values(self, values):
         """Set spreadsheet cell values
@@ -54,11 +62,16 @@ class Spreadsheet:
         :type ypos: integer
         :return: cell values and info
         :rtype: :class:`xlrd.sheet.Cell`"""
-        return xlrd.sheet.Cell(
+        if self.ctypes:
+            return xlrd.sheet.Cell(
                 self.ctypes[xpos][ypos], self.values[xpos][ypos])
+        elif self.assume:
+            return xlrd.sheet.Cell(self.assume, self.values[xpos][ypos])
+        else:
+            return None
 
 
-def read_xl(filename, sheet=None, type='name'):
+def read_xl(filename, sheet=None, sheet_type='name'):
     """Read sheet data or sheet names from an Excel workbook
 
     :example:
@@ -80,19 +93,17 @@ def read_xl(filename, sheet=None, type='name'):
     :return: sheet names if sheet is None, otherwise sheet data
     :rtype: list of strings if sheet is None, otherwise :class:`Spreadsheet`"""
     book = xlrd.open_workbook(filename)
-    sh = Spreadsheet()
+    spreadsheet = Spreadsheet()
     if sheet is None:
         return book.sheet_names()
-    elif type == 'name':
-        xl = book.sheet_by_name(sheet)
-        sh.set_values(xl._cell_values)
-        sh.set_ctypes(xl._cell_types)
-        return sh
-    elif type == 'index':
-        xl = book.sheet_by_index(sheet)
-        sh.set_values(xl._cell_values)
-        sh.set_ctypes(xl._cell_types)
-        return sh
+    elif sheet_type == 'name':
+        xl_sheet = book.sheet_by_name(sheet)
+        spreadsheet.set_data(xl_sheet.get_rows())
+        return spreadsheet
+    elif sheet_type == 'index':
+        xl_sheet = book.sheet_by_index(sheet)
+        spreadsheet.set_data(xl_sheet.get_rows())
+        return spreadsheet
     else:
         return None
 
@@ -115,7 +126,7 @@ def read_csv(filename, start=1, stop=None, assume=TEXT):
     :return: spreadsheet data
     :rtype: :class:`Spreadsheet`"""
     values = []
-    sh = Spreadsheet()
+    spreadsheet = Spreadsheet(assume)
     with open(filename) as csvfile:
         reader = csv.reader(csvfile)
         for row in reader:
@@ -125,14 +136,8 @@ def read_csv(filename, start=1, stop=None, assume=TEXT):
         stop = len(values)
 
     values = values[start-1:stop]
-
-    if len(values[0]) > 1:
-        sh.set_ctypes([[assume]*len(values[0])]*len(values))
-    else:
-        sh.set_ctypes([assume]*len(values))
-
-    sh.set_values(values)
-    return sh
+    spreadsheet.set_values(values)
+    return spreadsheet
 
 
 def read_mat(filename, variable):
@@ -152,7 +157,7 @@ def read_mat(filename, variable):
     return contents[variable]
 
 
-def _read_section(sheet, row_range, col_range, assume=None):
+def read_section(sheet, row_range=None, col_range=None):
     """Read a 'chunk' of data from a spreadsheet.
 
     Given a selection of rows and columns, this function will return the
@@ -162,26 +167,32 @@ def _read_section(sheet, row_range, col_range, assume=None):
     :example:
 
     spreadsheet = read_xl('parameters.xlsx', 'Parameters')
-    cell_data = _read_section(
-        spreadsheet, [1, 3, 5], range(7, 42), assume=NUMBER)
+    cell_data = read_section(
+        spreadsheet, [1, 3, 5], range(7, 42))
 
     :param sheet: spreadsheet data
     :param row_range: selected rows
     :param col_range: selected columns
-    :param assume: type of data to assume
     :type sheet: :class:`xlrd.sheet`
     :type row_range: list of integers
     :type col_range: list of integers
-    :type assume: integer
     :return: section of sheet data
     :rtype: array if assume=NUMBER else list"""
 
-    if assume == NUMBER:
-        return np.array(
-                [[float(sheet.values[x-1][y-1]) for y in col_range]
-                 for x in row_range])
+    if row_range is None:
+        row_range = range(1, len(sheet.values)+1)
 
-    return [[sheet.cell(x-1, y-1) for y in col_range] for x in row_range]
+    if col_range is None:
+        col_range = range(1, len(sheet.values[0])+1)
+
+    rval = [[sheet.cell(x-1, y-1) for y in col_range] for x in row_range]
+
+    if sheet.assume == NUMBER:
+        return np.array(
+            [[rval[x-1][y-1].value for y in col_range] for x in row_range],
+            dtype='float')
+
+    return rval
 
 
 def _multiple_replace(repl, text):
@@ -224,21 +235,21 @@ def _fun_to_lambda(entry):
     }
 
     # pull out function variable definition
-    vari = re.search('\@\(.*?\)', entry).group(0)
-    vari = re.sub('\@|\(|\)', '', vari)
+    vari = re.findall(r'\@\(.*?\)', entry)
+    vari = [re.sub(r'\@|\(|\)', '', x) for x in vari]
 
     # remove variable definition
-    entry = re.sub('\@\(.*?\)', '', entry)
+    entry = re.sub(r'\@\(.*?\)', '', entry)
 
     # replace operators to suit numpy
     entry = _multiple_replace(repl, entry)
 
     # separate equations into different functions
-    entry = re.sub('{|}', '', entry).split(', ')
+    entry = re.sub('{|}', '', entry).split(',')
 
     return list(
-            eval('lambda ' + vari + ': ' + entry[i])
-            for i in range(0, len(entry)))
+        eval('lambda ' + vari[i] + ': ' + entry[i])
+        for i in range(0, len(entry)))
 
 
 def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
@@ -262,8 +273,8 @@ def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
     :return: mapping of parameter names to values
     :rtype: dict"""
 
-    name_cells = _read_section(sheet, name_rrange, name_crange)
-    data_cells = _read_section(sheet, param_rrange, param_crange)
+    name_cells = read_section(sheet, name_rrange, name_crange)
+    data_cells = read_section(sheet, param_rrange, param_crange)
 
     # Verify the number of names matches the number of params
     assert len(name_cells) == len(data_cells)
@@ -276,19 +287,7 @@ def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
 
 
 def main():
-    params = dict()
-    sheet = read_xl('Doyle_parameter_list_degradation.xlsx', 0, 'index')
-    params["cst"] = read_params(sheet, range(7, 15), [2], range(7, 15), [3])
-    params["neg"] = read_params(sheet, range(18, 43), [2], range(18, 43), [3])
-    params["sep"] = read_params(sheet, range(47, 52), [2], range(47, 52), [3])
-    params["pos"] = read_params(sheet, range(55, 75), [2], range(55, 75), [3])
-    # print(params)
-
-    sheet2 = read_csv('ce.csv', start=1, assume=NUMBER)
-    print(_read_section(
-        sheet2, range(9, sheet2.size()[0]), [1, 2], assume=NUMBER))
-    var = _read_section(sheet2, range(9, sheet2.size()[0]), [1, 2])
-    print(read_mat('gwmodel.mat', 'ce'))
+    pass
 
 if __name__ == '__main__':
     sys.exit(main())
