@@ -1,4 +1,4 @@
 numpy==1.11.1
 xlrd==1.0.0
-csv==1.0
 scipy==0.18.0
+click==6.6
