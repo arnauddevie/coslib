@@ -133,8 +133,8 @@ def load_section(sheet, row_range=None, col_range=None):
     :param row_range: selected rows
     :param col_range: selected columns
     :type sheet: :class:`xlrd.sheet`
-    :type row_range: list of integers
-    :type col_range: list of integers
+    :type row_range: list of integers or integer
+    :type col_range: list of integers or integer
     :return: section of sheet data
     :rtype: array if assume=NUMBER else list"""
 
@@ -143,6 +143,12 @@ def load_section(sheet, row_range=None, col_range=None):
 
     if col_range is None:
         col_range = range(1, len(sheet.values[0])+1)
+
+    if isinstance(row_range, int):
+        row_range = [row_range]
+
+    if isinstance(col_range, int):
+        col_range = [col_range]
 
     rval = [[sheet.cell(x-1, y-1) for y in col_range] for x in row_range]
 
@@ -206,29 +212,42 @@ def _fun_to_lambda(entry):
                 for i in range(0, len(entry)))
 
 
-def load_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
+def load_params(sheet, rows=None, ncols=None, pcols=None, cols=None,
+                nrows=None, prows=None):
     """Read designated parameters from the sheet
 
     :example:
 
     sheet=read_excel('parameter_list.xlsx', 0, 'index')
-    params["pos"] = load_params(sheet, range(55, 75), [2], range(55, 75), [3])
+    params["pos"] = load_params(sheet, range(55, 75), ncols=2, pcols=3)
 
     :param sheet: spreadsheet data
-    :param name_rrange: cell rows to read for parameter names
-    :param name_crange: cell columns to read for parameter names
-    :param param_rrange: cell rows to read for parameter data
-    :param param_crange: cell columns to read for parameter data
+    :param rows: same as nrows=prows
+    :param cols: same as ncols=pcols
+    :param nrows: cell rows to read for parameter names
+    :param ncols: cell columns to read for parameter names
+    :param prows: cell rows to read for parameter data
+    :param pcols: cell columns to read for parameter data
     :type sheet: :class:`Spreadsheet`
-    :type name_rrange: list of integers
-    :type name_crange: list of integers
-    :type param_rrange: list of integers
-    :type param_crange: list of integers
+    :type rows: list of integers or integer
+    :type cols: list of integers or integer
+    :type nrows: list of integers or integer
+    :type ncols: list of integers or integer
+    :type prows: list of integers or integer
+    :type pcols: list of integers or integer
     :return: mapping of parameter names to values
     :rtype: dict"""
 
-    name_cells = load_section(sheet, name_rrange, name_crange)
-    data_cells = load_section(sheet, param_rrange, param_crange)
+    if rows:
+        nrows = rows
+        prows = rows
+
+    if cols:
+        ncols = cols
+        pcols = cols
+
+    name_cells = load_section(sheet, nrows, ncols)
+    data_cells = load_section(sheet, prows, pcols)
 
     # Verify the number of names matches the number of params
     assert len(name_cells) == len(data_cells)

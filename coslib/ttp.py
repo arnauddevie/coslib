@@ -4,18 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ldp
 
-"""
-def load(filename, start=1):
-    Load CSV data assuming floating numbers
-    values = list()
-    with open(filename, 'r') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            values.append(row)
-
-    return np.array(values[start-1:], dtype='float')
-"""
-
 
 def get_param(filename, time, location=None, delta_t=0.1, delete=None):
     """Fetch parameter data from a given location and time"""
@@ -51,10 +39,11 @@ def j(ce,cse,phie,phis,params,const):
 def main():
     params = dict()
     sheet = ldp.read_excel('../tests/gold_standard/GuAndWang_parameter_list.xlsx', 0)
-    params['const'] = ldp.read_params(sheet, range(7, 15), [2], range(7, 15), [3])
-    params['neg'] = ldp.read_params(sheet, range(18, 43), [2], range(18, 43), [3])
-    params['sep'] = ldp.read_params(sheet, range(47, 52), [2], range(47, 52), [3])
-    params['pos'] = ldp.read_params(sheet, range(55, 75), [2], range(55, 75), [3])
+    (ncol, pcol) = (2,3)
+    params['const'] = ldp.load_params(sheet, range(7, 15), ncol, pcol)
+    params['neg'] = ldp.load_params(sheet, range(18, 43), ncol, pcol)
+    params['sep'] = ldp.load_params(sheet, range(47, 52), ncol, pcol)
+    params['pos'] = ldp.load_params(sheet, range(55, 75), ncol, pcol)
 
     eref_neg = ldp.loadtxt('../tests/gold_standard/eref_neg.csv', comments='%', delimiter=',')
     sheet = ldp.read_csv('../tests/gold_standard/eref_neg.csv', assume=ldp.NUMBER)
