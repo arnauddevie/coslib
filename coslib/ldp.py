@@ -206,13 +206,13 @@ def _fun_to_lambda(entry):
                 for i in range(0, len(entry)))
 
 
-def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
+def load_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
     """Read designated parameters from the sheet
 
     :example:
 
     sheet=read_excel('parameter_list.xlsx', 0, 'index')
-    params["pos"] = read_params(sheet, range(55, 75), [2], range(55, 75), [3])
+    params["pos"] = load_params(sheet, range(55, 75), [2], range(55, 75), [3])
 
     :param sheet: spreadsheet data
     :param name_rrange: cell rows to read for parameter names
@@ -298,6 +298,7 @@ class Spreadsheet(object):
 
 
 def main():
+    """Module entry point"""
     pass
 
 if __name__ == '__main__':
