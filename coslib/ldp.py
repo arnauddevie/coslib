@@ -182,12 +182,8 @@ def _fun_to_lambda(entry):
     :type: string
     :return: mathmatical function
     :rtype: lambda function"""
+
     repl = {
-        'sin': 'np.sin',
-        'cos': 'np.cos',
-        'tan': 'np.tan',
-        'sech': '1/np.cosh',
-        'exp': 'np.exp',
         './': '/',
         '.*': '*',
         '.^': '**'
@@ -206,9 +202,8 @@ def _fun_to_lambda(entry):
     # separate equations into different functions
     entry = re.sub('{|}', '', entry).split(',')
 
-    return list(lambda
-        eval('lambda ' + vari[i] + ': ' + entry[i])
-        for i in range(0, len(entry)))
+    return list(lambda x: ne.evaluate(entry[i], local_dict={vari[i]: x})
+                for i in range(0, len(entry)))
 
 
 def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
