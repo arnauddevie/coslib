@@ -20,7 +20,7 @@ def load(filename, start=1):
 def get_param(filename, time, location=None, delta_t=0.1, delete=None):
     """Fetch parameter data from a given location and time"""
     sheet = ldp.read_csv(filename, start=9, assume=ldp.NUMBER)
-    parameter = ldp.read_section(sheet)
+    parameter = ldp.load_section(sheet)
     (x_parameter, y_parameter) = (parameter[:, 0], parameter[:, 1])
     time_frame = np.nonzero(np.diff(x_parameter) < 0)[0]
     start = np.insert(time_frame+1, 0, 1)
@@ -50,16 +50,17 @@ def j(ce,cse,phie,phis,params,const):
 
 def main():
     params = dict()
-    sheet = ldp.read_xl('../tests/gold_standard/GuAndWang_parameter_list.xlsx', 0, 'index')
+    sheet = ldp.read_excel('../tests/gold_standard/GuAndWang_parameter_list.xlsx', 0)
     params['const'] = ldp.read_params(sheet, range(7, 15), [2], range(7, 15), [3])
     params['neg'] = ldp.read_params(sheet, range(18, 43), [2], range(18, 43), [3])
     params['sep'] = ldp.read_params(sheet, range(47, 52), [2], range(47, 52), [3])
     params['pos'] = ldp.read_params(sheet, range(55, 75), [2], range(55, 75), [3])
 
+    eref_neg = ldp.loadtxt('../tests/gold_standard/eref_neg.csv', comments='%', delimiter=',')
     sheet = ldp.read_csv('../tests/gold_standard/eref_neg.csv', assume=ldp.NUMBER)
-    eref_neg = ldp.read_section(sheet)
+    eref_neg = ldp.load_section(sheet)
     sheet = ldp.read_csv('../tests/gold_standard/eref_pos.csv', assume=ldp.NUMBER)
-    eref_pos = ldp.read_section(sheet)
+    eref_pos = ldp.load_section(sheet)
 
     params['neg']['eref'] = lambda soc: np.interp(soc, eref_neg[:][0], eref_neg[:][1])
     params['pos']['eref'] = lambda soc: np.interp(soc, eref_pos[:][0], eref_pos[:][1])

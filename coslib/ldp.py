@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import scipy.io as sio
 import xlrd
+import numexpr as ne
 
 DATE = xlrd.XL_CELL_DATE
 TEXT = xlrd.XL_CELL_TEXT
@@ -14,98 +15,56 @@ ERROR = xlrd.XL_CELL_ERROR
 NUMBER = xlrd.XL_CELL_NUMBER
 
 
-class Spreadsheet:
-    """Hold spreadsheet data"""
-
-    def __init__(self, assumption=None):
-        """Entry point for :class:`Spreadsheet`"""
-        self.values = None
-        self.ctypes = None
-        self.assume = assumption
-
-    def set_data(self, data_in):
-        """Set spreadsheet data using cell generators"""
-        data = list(data_in)
-        self.values = [[col.value for col in row] for row in data]
-        self.ctypes = [[col.ctype for col in row] for row in data]
-
-    def set_values(self, values):
-        """Set spreadsheet cell values
-
-        :param values: values to set
-        :type values: container, e.g. list"""
-        self.values = values
-
-    def set_ctypes(self, ctype):
-        """Set spreadsheet cell types. I.e. NUMBER, TEXT, etc.
-
-        :param ctype: cell types to set
-        :type values: container, e.g. list"""
-        self.ctypes = ctype
-
-    def size(self):
-        """Retrieve the dimensions of the spreadsheet
-
-        :return: spreadsheed dimensions
-        :rtype: tuple"""
-        if self.values is not None:
-            return len(self.values), len(self.values[0])
-        else:
-            return None
-
-    def cell(self, xpos, ypos):
-        """Retrieve cell information
-
-        :param xpos: cell row
-        :param ypos: cell column
-        :type xpos: integer
-        :type ypos: integer
-        :return: cell values and info
-        :rtype: :class:`xlrd.sheet.Cell`"""
-        if self.ctypes:
-            return xlrd.sheet.Cell(
-                self.ctypes[xpos][ypos], self.values[xpos][ypos])
-        elif self.assume:
-            return xlrd.sheet.Cell(self.assume, self.values[xpos][ypos])
-        else:
-            return None
-
-
-def read_xl(filename, sheet=None, sheet_type='name'):
-    """Read sheet data or sheet names from an Excel workbook
+def read_excel(filename, sheet=None):
+    """Read sheet data or sheet names from an Excel workbook into a
+    :class:`Spreadsheet`.
 
     :example:
 
-    sheet_names = read_xl('parameter.xlsx') # returns a list of sheet names
+    sheet_names = read_excel('parameter.xlsx') # returns a list of sheet names
 
     :example:
 
-    spreadsheet = read_xl('parameter.xlsx', 0, 'index')
-    # returns the sheet data return ``Sheet Names`` if the given *sheet* is set
-    # to None, return sheet data otherwise.
+    spreadsheet = read_excel('parameter.xlsx', 0) # read the first sheet
+
+    :example:
+
+    spreadsheet = read_excel(parameter.xls', 'sheet_2') # load 'sheet_2'
 
     :param filename: name of the excel woorkbook to import
     :param sheet: spreadsheet name or index to import
-    :param type: using 'index' or 'name' for designating a sheet
     :type filename: string
     :type sheet: string or integer or None
-    :type name: string
     :return: sheet names if sheet is None, otherwise sheet data
     :rtype: list of strings if sheet is None, otherwise :class:`Spreadsheet`"""
+
     book = xlrd.open_workbook(filename)
     spreadsheet = Spreadsheet()
     if sheet is None:
         return book.sheet_names()
-    elif sheet_type == 'name':
-        xl_sheet = book.sheet_by_name(sheet)
-        spreadsheet.set_data(xl_sheet.get_rows())
-        return spreadsheet
-    elif sheet_type == 'index':
+    elif isinstance(sheet, int):
         xl_sheet = book.sheet_by_index(sheet)
         spreadsheet.set_data(xl_sheet.get_rows())
         return spreadsheet
     else:
-        return None
+        xl_sheet = book.sheet_by_name(sheet)
+        spreadsheet.set_data(xl_sheet.get_rows())
+        return spreadsheet
+
+
+def loadtxt(filename, dtype='float', comments='#', delimiter=None, skiprows=0,
+            usecols=None, unpack=False):
+    """Load ascii files into a numpy ndarray using numpy.loadtxt."""
+    return np.loadtxt(
+        filename, dtype, comments, delimiter,
+        None, skiprows, usecols, unpack)
+
+
+def load(file, mmap_mode=None, allow_pickle=True, fix_imports=True,
+         encoding='ASCII'):
+    """Load numpy .npy and .npz files to an array or map of arrays
+    respectively using np.load"""
+    return np.load(file, mmap_mode, allow_pickle, fix_imports, encoding)
 
 
 def read_csv(filename, start=1, stop=None, assume=TEXT):
@@ -122,7 +81,7 @@ def read_csv(filename, start=1, stop=None, assume=TEXT):
     :type filename: string
     :type start: integer
     :type stop: integer
-    :type assume: integeri
+    :type assume: integer
     :return: spreadsheet data
     :rtype: :class:`Spreadsheet`"""
     values = []
@@ -140,8 +99,8 @@ def read_csv(filename, start=1, stop=None, assume=TEXT):
     return spreadsheet
 
 
-def read_mat(filename, variable):
-    """Read the variable *variable* from *filename*
+def load_mat(filename, variable):
+    """Read the variable from filename
 
     :example:
 
@@ -157,7 +116,7 @@ def read_mat(filename, variable):
     return contents[variable]
 
 
-def read_section(sheet, row_range=None, col_range=None):
+def load_section(sheet, row_range=None, col_range=None):
     """Read a 'chunk' of data from a spreadsheet.
 
     Given a selection of rows and columns, this function will return the
@@ -166,8 +125,8 @@ def read_section(sheet, row_range=None, col_range=None):
 
     :example:
 
-    spreadsheet = read_xl('parameters.xlsx', 'Parameters')
-    cell_data = read_section(
+    spreadsheet = read_excel('parameters.xlsx', 'Parameters')
+    cell_data = load_section(
         spreadsheet, [1, 3, 5], range(7, 42))
 
     :param sheet: spreadsheet data
@@ -247,7 +206,7 @@ def _fun_to_lambda(entry):
     # separate equations into different functions
     entry = re.sub('{|}', '', entry).split(',')
 
-    return list(
+    return list(lambda
         eval('lambda ' + vari[i] + ': ' + entry[i])
         for i in range(0, len(entry)))
 
@@ -257,7 +216,7 @@ def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
 
     :example:
 
-    sheet=read_xl('parameter_list.xlsx', 0, 'index')
+    sheet=read_excel('parameter_list.xlsx', 0, 'index')
     params["pos"] = read_params(sheet, range(55, 75), [2], range(55, 75), [3])
 
     :param sheet: spreadsheet data
@@ -273,8 +232,8 @@ def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
     :return: mapping of parameter names to values
     :rtype: dict"""
 
-    name_cells = read_section(sheet, name_rrange, name_crange)
-    data_cells = read_section(sheet, param_rrange, param_crange)
+    name_cells = load_section(sheet, name_rrange, name_crange)
+    data_cells = load_section(sheet, param_rrange, param_crange)
 
     # Verify the number of names matches the number of params
     assert len(name_cells) == len(data_cells)
@@ -284,6 +243,63 @@ def read_params(sheet, name_rrange, name_crange, param_rrange, param_crange):
             for y in data_cells for x in y]
 
     return dict(zip([x.value for y in name_cells for x in y], data))
+
+
+class Spreadsheet(object):
+    """Hold spreadsheet data"""
+
+    def __init__(self, assumption=None):
+        """Entry point for :class:`Spreadsheet`"""
+        self.values = None
+        self.ctypes = None
+        self.assume = assumption
+
+    def set_data(self, data_in):
+        """Set spreadsheet data using cell generators"""
+        data = list(data_in)
+        self.values = [[col.value for col in row] for row in data]
+        self.ctypes = [[col.ctype for col in row] for row in data]
+
+    def set_values(self, values):
+        """Set spreadsheet cell values
+
+        :param values: values to set
+        :type values: container, e.g. list"""
+        self.values = values
+
+    def set_ctypes(self, ctype):
+        """Set spreadsheet cell types. I.e. NUMBER, TEXT, etc.
+
+        :param ctype: cell types to set
+        :type values: container, e.g. list"""
+        self.ctypes = ctype
+
+    def size(self):
+        """Retrieve the dimensions of the spreadsheet
+
+        :return: spreadsheed dimensions
+        :rtype: tuple"""
+        if self.values is not None:
+            return len(self.values), len(self.values[0])
+        else:
+            return None
+
+    def cell(self, xpos, ypos):
+        """Retrieve cell information
+
+        :param xpos: cell row
+        :param ypos: cell column
+        :type xpos: integer
+        :type ypos: integer
+        :return: cell values and info
+        :rtype: :class:`xlrd.sheet.Cell`"""
+        if self.ctypes:
+            return xlrd.sheet.Cell(
+                self.ctypes[xpos][ypos], self.values[xpos][ypos])
+        elif self.assume:
+            return xlrd.sheet.Cell(self.assume, self.values[xpos][ypos])
+        else:
+            return None
 
 
 def main():
