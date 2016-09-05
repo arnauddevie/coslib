@@ -208,7 +208,7 @@ def _fun_to_lambda(entry):
     # separate equations into different functions
     entry = re.sub('{|}', '', entry).split(',')
 
-    return list(lambda x: ne.evaluate(entry[i], local_dict={vari[i]: x})
+    return list(lambda x, z=i: ne.evaluate(entry[z], local_dict={vari[z]: x})
                 for i in range(0, len(entry)))
 
 
